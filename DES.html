@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Mã hóa / Giải mã File</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Font Awesome for Icons -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #6b7280, #d1d5db);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 1s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card {
+      border: none;
+      border-radius: 30px;
+      background: linear-gradient(145deg, #ffffff, #e6e6e6);
+      box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.15), -10px -10px 20px rgba(255, 255, 255, 0.7);
+      animation: slideUp 0.8s ease;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 15px 15px 30px rgba(0, 0, 0, 0.2), -15px -15px 30px rgba(255, 255, 255, 0.9);
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(40px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .btn {
+      border-radius: 15px;
+      padding: 12px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-success {
+      background: linear-gradient(90deg, #34d399, #10b981);
+    }
+
+    .btn-warning {
+      background: linear-gradient(90deg, #fbbf24, #f59e0b);
+    }
+
+    .btn-outline-primary {
+      border: 2px solid #3b82f6;
+      color: #3b82f6;
+      font-weight: 500;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.2);
+      transition: 0.5s;
+    }
+
+    .btn:hover::after {
+      left: 100%;
+    }
+
+    .form-control {
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+    }
+
+    .form-label {
+      font-weight: 500;
+      color: #374151;
+    }
+
+    h2 {
+      font-weight: 600;
+      color: #1f2937;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .spinner-border {
+      width: 1.5rem;
+      height: 1.5rem;
+      display: none;
+    }
+
+    .icon {
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container py-5">
+    <div class="card shadow-lg p-5 mx-auto" style="max-width: 500px;">
+      <h2 class="text-center mb-4"><i class="fas fa-lock icon"></i> Mã hóa / Giải mã File</h2>
+
+      <div class="mb-4">
+        <label class="form-label"><i class="fas fa-file-upload icon"></i> Chọn file:</label>
+        <input type="file" class="form-control" id="fileInput">
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label"><i class="fas fa-key icon"></i> Nhập keycode:</label>
+        <input type="text" class="form-control" id="keycode" placeholder="VD: mysecretkey">
+      </div>
+
+      <div class="d-flex gap-3 mb-4">
+        <button class="btn btn-success w-50" onclick="processFile('encrypt')"><i class="fas fa-lock icon"></i> Mã hóa</button>
+        <button class="btn btn-warning w-50" onclick="processFile('decrypt')"><i class="fas fa-unlock icon"></i> Giải mã</button>
+      </div>
+
+      <div class="text-center">
+        <div class="spinner-border text-primary" role="status" id="loadingSpinner"></div>
+        <a id="downloadLink" class="btn btn-outline-primary mt-3 d-none" download><i class="fas fa-download icon"></i> Tải file kết quả</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const HEADER = new TextEncoder().encode("HEADER:OK\n");
+
+    function stringToNumberKey(key) {
+      if (!key) return 0;
+      // Convert string to a number by summing character codes
+      return key.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0) % 256;
+    }
+
+    function processFile(action) {
+      const fileInput = document.getElementById('fileInput');
+      const keycode = document.getElementById('keycode').value;
+      const spinner = document.getElementById('loadingSpinner');
+      const downloadLink = document.getElementById('downloadLink');
+
+      if (!fileInput.files.length) {
+        alert("❗ Vui lòng chọn file.");
+        return;
+      }
+
+      if (!keycode) {
+        alert("❗ Vui lòng nhập keycode.");
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      const keyNumber = stringToNumberKey(keycode);
+
+      // Show loading spinner
+      spinner.style.display = "inline-block";
+      downloadLink.classList.add("d-none");
+
+      reader.onload = function () {
+        const array = new Uint8Array(reader.result);
+        let result;
+
+        if (action === 'encrypt') {
+          const content = new Uint8Array(HEADER.length + array.length);
+          content.set(HEADER, 0);
+          content.set(array, HEADER.length);
+          result = content.map(byte => (byte + keyNumber) % 256);
+        } else {
+          const decrypted = array.map(byte => (byte - keyNumber + 256) % 256);
+          const headerStr = new TextDecoder().decode(decrypted.slice(0, HEADER.length));
+          if (headerStr !== "HEADER:OK\n") {
+            spinner.style.display = "none";
+            alert("❌ Keycode sai hoặc file không hợp lệ!");
+            return;
+          }
+          result = decrypted.slice(HEADER.length);
+        }
+
+        const blob = new Blob([new Uint8Array(result)], { type: "application/octet-stream" });
+        const url = URL.createObjectURL(blob);
+
+        downloadLink.href = url;
+        downloadLink.download = file.name + (action === 'encrypt' ? '.enc' : '.dec');
+        downloadLink.classList.remove("d-none");
+
+        // Hide spinner
+        spinner.style.display = "none";
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+  </script>
+</body>
+</html>
